@@ -204,7 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function setPickerPosition(displayX, displayY){
         // displayX/Y são coordenadas relativas ao canto superior esquerdo da imagem (em px, conforme getBoundingClientRect)
-        colorPicker.style.left = (displayX+65) + 'px';
+        colorPicker.style.left = displayX + 'px';
         colorPicker.style.top = displayY + 'px';
     
     }

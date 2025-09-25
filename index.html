@@ -9,14 +9,35 @@
 <body>
     <div class="container">
         <header class="header">
-            <h1>🎨 Analisador de Cores</h1>
+            <h1>Analisador de Cores</h1>
             <p>Análise precisa com CIELAB</p>
+        </div>
+        <div class="settings-group">
+            <div class="settings-item">
+                <label for="illuminantSelect">Iluminante:</label>
+                <select id="illuminantSelect" class="settings-select">
+                    <option value="D65" selected>Luz do Dia (D65)</option>
+                    <option value="A">Tungstênio (A)</option>
+                    <option value="F2">Fluorescente (F2)</option>
+                </select>
+                <span class="info-tooltip" title="Selecione o tipo de luz do ambiente para um cálculo CIELAB mais preciso.">ⓘ</span>
+            </div>
+            <div class="settings-item">
+                <label for="sampleSizeSelect">Amostra:</label>
+                <select id="sampleSizeSelect" class="settings-select">
+                    <option value="1">1x1 Pixel</option>
+                    <option value="3">3x3 Pixel</option>
+                    <option value="5" selected>5x5 Pixel</option>
+                    <option value="9">9x9 Pixel</option>
+                </select>
+                <span class="info-tooltip" title="Selecione o tamanho da área para a média da cor. Áreas maiores são melhores para texturas.">ⓘ</span>
+            </div>
         </div>
 
         <div class="card upload-section">
             <input type="file" id="imageInput" class="file-input" accept="image/*" capture="environment">
             <button id="uploadBtn" class="upload-btn" aria-label="Carregar uma imagem da galeria ou câmera">
-                📱 Carregar Imagem
+                Carregar Imagem
             </button>
             
             <div class="image-container hidden" id="imageContainer">
@@ -59,34 +80,14 @@
                 </div>
             </div>
             
-            <div class="settings-group">
-                <div class="settings-item">
-                    <label for="illuminantSelect">Iluminante:</label>
-                    <select id="illuminantSelect" class="settings-select">
-                        <option value="D65" selected>Luz do Dia (D65)</option>
-                        <option value="A">Tungstênio (A)</option>
-                        <option value="F2">Fluorescente (F2)</option>
-                    </select>
-                    <span class="info-tooltip" title="Selecione o tipo de luz do ambiente para um cálculo CIELAB mais preciso.">ⓘ</span>
-                </div>
-                <div class="settings-item">
-                    <label for="sampleSizeSelect">Amostra:</label>
-                    <select id="sampleSizeSelect" class="settings-select">
-                        <option value="1">1x1 Pixel</option>
-                        <option value="3">3x3 Pixel</option>
-                        <option value="5" selected>5x5 Pixel</option>
-                        <option value="9">9x9 Pixel</option>
-                    </select>
-                    <span class="info-tooltip" title="Selecione o tamanho da área para a média da cor. Áreas maiores são melhores para texturas.">ⓘ</span>
-                </div>
-            </div>
+          
 
             <div class="action-buttons">
                 <button id="saveStandardBtn" class="btn btn-primary" aria-label="Salvar cor como padrão">
-                    📌 Salvar Padrão
+                    Salvar Padrão
                 </button>
                 <button id="captureColorBtn" class="btn btn-secondary" aria-label="Registrar cor capturada">
-                    📊 Registrar Cor
+                    Registrar Cor
                 </button>
             </div>
         </section>
@@ -97,10 +98,10 @@
                 <!-- Padrões aparecerão aqui -->
             </div>
             <button id="deleteStandardBtn" class="btn btn-danger hidden" aria-label="Deletar padrão selecionado">
-                🗑️ Deletar Padrão
+                Deletar Padrão
             </button>
             <div class="info-panel">
-                <strong>💡 Dica:</strong> Toque em um padrão para calcular a diferença ΔE (Delta E) com a cor atual selecionada.
+                <strong> Dica:</strong> Toque em um padrão para calcular a diferença ΔE (Delta E) com a cor atual selecionada.
             </div>
         </section>
 
@@ -128,6 +129,8 @@
             </div>
         </section>
     </div>
+  
+
 
     <script src="script.js"></script>
 </body>
