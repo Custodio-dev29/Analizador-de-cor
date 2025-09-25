@@ -204,8 +204,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function setPickerPosition(displayX, displayY){
         // displayX/Y são coordenadas relativas ao canto superior esquerdo da imagem (em px, conforme getBoundingClientRect)
-        colorPicker.style.left = displayX + 'px';
+        colorPicker.style.left = (displayX+65) + 'px';
         colorPicker.style.top = displayY + 'px';
+    
     }
 
     function extractAverageColorAtDisplayedPoint(displayX, displayY, sampleSize){
@@ -312,7 +313,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!isDragging) return;
         e.preventDefault();
         const t = e.touches[0];
-        handleMove(t.clientX, t.clientY);
+        handleMove((t.clientX), t.clientY);
+        
     }, { passive: false });
 
     document.addEventListener('touchend', () => {
