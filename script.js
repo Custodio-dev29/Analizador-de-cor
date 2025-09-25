@@ -183,6 +183,39 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.readAsDataURL(file);
     });
 
+    function getRenderedImageMetrics() {
+        const {
+            width: containerWidth,
+            height: containerHeight,
+        } = uploadedImage.getBoundingClientRect();
+
+        const {
+            naturalWidth,
+            naturalHeight
+        } = uploadedImage;
+
+        const imageAspectRatio = naturalWidth / naturalHeight;
+        const containerAspectRatio = containerWidth / containerHeight;
+
+        let renderedWidth, renderedHeight, offsetX, offsetY;
+
+        if (imageAspectRatio > containerAspectRatio) {
+            // A imagem é mais larga que o contêiner (limitada pela largura)
+            renderedWidth = containerWidth;
+            renderedHeight = renderedWidth / imageAspectRatio;
+            offsetX = 0;
+            offsetY = (containerHeight - renderedHeight) / 2;
+        } else {
+            // A imagem é mais alta ou tem a mesma proporção que o contêiner (limitada pela altura)
+            renderedHeight = containerHeight;
+            renderedWidth = renderedHeight * imageAspectRatio;
+            offsetY = 0;
+            offsetX = (containerWidth - renderedWidth) / 2;
+        }
+
+        return { renderedWidth, renderedHeight, offsetX, offsetY };
+    }
+
     uploadedImage.addEventListener('load', () => {
         // preparar canvas com resolução real da imagem
         canvas.width = uploadedImage.naturalWidth;
@@ -194,12 +227,14 @@ document.addEventListener('DOMContentLoaded', () => {
         imageContainer.classList.remove('hidden');
         colorPicker.classList.remove('hidden');
 
-        // posicionar o picker no centro da imagem exibida (usando bounding rect)
-        const rect = uploadedImage.getBoundingClientRect();
-        const centerX = rect.width / 2;
-        const centerY = rect.height / 2;
+        // posicionar o picker no centro da imagem RENDERIZADA
+        const { renderedWidth, renderedHeight, offsetX, offsetY } = getRenderedImageMetrics();
+        const centerX = (renderedWidth / 2) + offsetX;
+        const centerY = (renderedHeight / 2) + offsetY;
+        
         setPickerPosition(centerX, centerY);
-        extractColorAtDisplayedPoint(centerX, centerY);
+        // A função de extração precisa das coordenadas relativas à imagem renderizada
+        extractAverageColorAtDisplayedPoint(renderedWidth / 2, renderedHeight / 2, currentSampleSize);
     });
 
     function setPickerPosition(displayX, displayY){
@@ -209,25 +244,28 @@ document.addEventListener('DOMContentLoaded', () => {
     
     }
 
-    function extractAverageColorAtDisplayedPoint(displayX, displayY, sampleSize){
-        // converter para coordenadas do canvas (resolução natural)
-        const rect = uploadedImage.getBoundingClientRect();
-        const scaleX = uploadedImage.naturalWidth / rect.width;
-        const scaleY = uploadedImage.naturalHeight / rect.height;
-        const centerX = Math.floor(displayX * scaleX);
-        const centerY = Math.floor(displayY * scaleY);
+    function extractAverageColorAtDisplayedPoint(renderedX, renderedY, sampleSize){
+        const { renderedWidth, renderedHeight } = getRenderedImageMetrics();
+        const { naturalWidth, naturalHeight } = uploadedImage;
 
-        // Define a área de amostragem (ex: 5x5 pixels)
+        // Converte de coordenadas da imagem renderizada para coordenadas da imagem natural (canvas)
+        const scaleX = naturalWidth / renderedWidth;
+        const scaleY = naturalHeight / renderedHeight;
+
+        const canvasX = Math.floor(renderedX * scaleX);
+        const canvasY = Math.floor(renderedY * scaleY);
+
+        // Define a área de amostragem
         const halfSize = Math.floor(sampleSize / 2);
-        const startX = Math.max(0, centerX - halfSize);
-        const startY = Math.max(0, centerY - halfSize);
-        const endX = Math.min(canvas.width, centerX + halfSize + 1);
-        const endY = Math.min(canvas.height, centerY + halfSize + 1);
+        const startX = Math.max(0, canvasX - halfSize);
+        const startY = Math.max(0, canvasY - halfSize);
+        const endX = Math.min(naturalWidth, canvasX + halfSize + 1);
+        const endY = Math.min(naturalHeight, canvasY + halfSize + 1);
         const sampleWidth = endX - startX;
         const sampleHeight = endY - startY;
 
         try {
-            if (sampleWidth <= 0 || sampleHeight <= 0) return; // Evita erro se a área for inválida
+            if (sampleWidth <= 0 || sampleHeight <= 0) return;
 
             const imageData = ctx.getImageData(startX, startY, sampleWidth, sampleHeight);
             const data = imageData.data;
@@ -246,35 +284,39 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function updateMagnifier(displayX, displayY, sampleSize) {
+    function updateMagnifier(pickerX, pickerY, sampleSize) {
         const magnifierCtx = magnifierCanvas.getContext('2d');
-        const zoomFactor = 10; // Nível de zoom
-        const sourceSize = magnifierCanvas.width / zoomFactor; // Quantos pixels da imagem original vamos mostrar
+        const zoomFactor = 10; 
+        const sourceSize = magnifierCanvas.width / zoomFactor;
 
-        // Posiciona a lupa um pouco acima e à direita do seletor
-        const magnifierX = displayX + 60;
-        const magnifierY = displayY - 60;
-        magnifier.style.left = `${magnifierX}px`;
-        magnifier.style.top = `${magnifierY}px`;
+        // Posiciona a lupa
+        magnifier.style.left = `${pickerX + 60}px`;
+        magnifier.style.top = `${pickerY - 60}px`;
 
-        // Converte a posição do seletor para coordenadas da imagem original
-        const rect = uploadedImage.getBoundingClientRect();
-        const scaleX = uploadedImage.naturalWidth / rect.width;
-        const scaleY = uploadedImage.naturalHeight / rect.height;
-        const sourceX = (displayX * scaleX) - (sourceSize / 2);
-        const sourceY = (displayY * scaleY) - (sourceSize / 2);
+        const { renderedWidth, renderedHeight, offsetX, offsetY } = getRenderedImageMetrics();
+        const { naturalWidth, naturalHeight } = uploadedImage;
 
-        // Limpa e desenha a porção da imagem original no canvas da lupa (com zoom)
+        // Converte a posição do picker (relativa ao container) para relativa à imagem renderizada
+        const renderedX = pickerX - offsetX;
+        const renderedY = pickerY - offsetY;
+
+        // Escala para a imagem natural
+        const scaleX = naturalWidth / renderedWidth;
+        const scaleY = naturalHeight / renderedHeight;
+        
+        const sourceX = (renderedX * scaleX) - (sourceSize / 2);
+        const sourceY = (renderedY * scaleY) - (sourceSize / 2);
+
+        // Desenha na lupa
         magnifierCtx.fillStyle = 'black';
         magnifierCtx.fillRect(0, 0, magnifierCanvas.width, magnifierCanvas.height);
-        magnifierCtx.imageSmoothingEnabled = false; // Essencial para o visual pixelado
+        magnifierCtx.imageSmoothingEnabled = false;
         magnifierCtx.drawImage(
-            canvas, // O canvas da imagem original
-            sourceX, sourceY, sourceSize, sourceSize, // De onde copiar (source)
-            0, 0, magnifierCanvas.width, magnifierCanvas.height // Onde desenhar (destination)
+            canvas,
+            sourceX, sourceY, sourceSize, sourceSize,
+            0, 0, magnifierCanvas.width, magnifierCanvas.height
         );
 
-        // Desenha um quadrado no centro da lupa para indicar a área de amostragem (5x5)
         const centerBoxSize = sampleSize * zoomFactor;
         magnifierCtx.strokeStyle = 'red';
         magnifierCtx.lineWidth = 2;
@@ -284,19 +326,33 @@ document.addEventListener('DOMContentLoaded', () => {
     // mover picker — recebe clientX/clientY da janela
     function handleMove(clientX, clientY){
         const imgRect = uploadedImage.getBoundingClientRect();
-        let relX = clientX - imgRect.left;
-        let relY = clientY - imgRect.top;
-        // clamp dentro da imagem exibida
-        relX = Math.max(0, Math.min(relX, imgRect.width));
-        relY = Math.max(0, Math.min(relY, imgRect.height));
-        setPickerPosition(relX, relY);
+        const { renderedWidth, renderedHeight, offsetX, offsetY } = getRenderedImageMetrics();
+
+        // Posição do mouse relativa ao contêiner <img>
+        const mouseXInContainer = clientX - imgRect.left;
+        const mouseYInContainer = clientY - imgRect.top;
+
+        // Posição do mouse relativa à imagem renderizada
+        let relX = mouseXInContainer - offsetX;
+        let relY = mouseYInContainer - offsetY;
+
+        // Garante que as coordenadas fiquem dentro da imagem renderizada
+        relX = Math.max(0, Math.min(relX, renderedWidth));
+        relY = Math.max(0, Math.min(relY, renderedHeight));
+
+        // A posição do picker é relativa ao contêiner, então somamos o offset de volta
+        const pickerX = relX + offsetX;
+        const pickerY = relY + offsetY;
+        setPickerPosition(pickerX, pickerY);
+        
         coordinatesEl.classList.remove('hidden');
         coordinatesEl.textContent = `x: ${Math.round(relX)}, y: ${Math.round(relY)}`;
 
-        // Debounce para evitar sobrecarga de processamento
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
-            updateMagnifier(relX, relY, currentSampleSize);
+            // A lupa usa coordenadas relativas ao contêiner
+            updateMagnifier(pickerX, pickerY, currentSampleSize);
+            // A extração de cor usa coordenadas relativas à imagem renderizada
             extractAverageColorAtDisplayedPoint(relX, relY, currentSampleSize);
         }, DEBOUNCE_DELAY_MS);
     }
@@ -540,7 +596,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     illuminantSelect.addEventListener('change', (e) => {
         currentIlluminant = e.target.value;
-        localStorage.setItem('colorAnalyzerIlluminant', currentIlluminant);
+        saveData();
         updateColorDisplay(); // Recalcula a cor principal
         updateResultsTable(); // Recalcula toda a tabela
     });
@@ -557,82 +613,4 @@ document.addEventListener('DOMContentLoaded', () => {
     // carregar dados ao iniciar
     loadData();
 
-    function getPixelColor(x, y) {
-        const img = document.getElementById('uploadedImage');
-        const canvas = document.createElement('canvas');
-        // Modificar esta linha para incluir willReadFrequently
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        
-        // Configurar canvas com dimensões da imagem original
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
-        
-        // Desenhar imagem no canvas
-        ctx.drawImage(img, 0, 0);
-        
-        // Obter dados do pixel
-        try {
-            const imageData = ctx.getImageData(x, y, 1, 1);
-            const [r, g, b] = imageData.data;
-            return { r, g, b };
-        } catch (error) {
-            console.error('Erro ao obter cor:', error);
-            return null;
-        }
-    }
-
-    function extractColorAtDisplayedPoint(displayX, displayY) {
-        const img = document.getElementById('uploadedImage');
-        const rect = img.getBoundingClientRect();
-        
-        // Converter coordenadas de exibição para coordenadas da imagem
-        const x = Math.round((displayX - rect.left) * (img.naturalWidth / rect.width));
-        const y = Math.round((displayY - rect.top) * (img.naturalHeight / rect.height));
-        
-        // Criar canvas temporário
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
-        
-        // Desenhar imagem e obter dados do pixel
-        try {
-            ctx.drawImage(img, 0, 0);
-            const sampleSize = parseInt(document.getElementById('sampleSizeSelect').value);
-            const halfSample = Math.floor(sampleSize / 2);
-            
-            // Calcular média da área selecionada
-            let r = 0, g = 0, b = 0;
-            let count = 0;
-            
-            for (let offsetY = -halfSample; offsetY <= halfSample; offsetY++) {
-                for (let offsetX = -halfSample; offsetX <= halfSample; offsetX++) {
-                    const sampleX = x + offsetX;
-                    const sampleY = y + offsetY;
-                    
-                    if (sampleX >= 0 && sampleX < img.naturalWidth && 
-                        sampleY >= 0 && sampleY < img.naturalHeight) {
-                        const pixel = ctx.getImageData(sampleX, sampleY, 1, 1).data;
-                        r += pixel[0];
-                        g += pixel[1];
-                        b += pixel[2];
-                        count++;
-                    }
-                }
-            }
-            
-            // Calcular média
-            return {
-                r: Math.round(r / count),
-                g: Math.round(g / count),
-                b: Math.round(b / count),
-                x: x,
-                y: y
-            };
-        } catch (error) {
-            console.error('Erro ao extrair cor:', error);
-            return null;
-        }
-    }
 });
