@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- CANVAS GLOBAL ---
     const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
     // --- UTILIDADES DE COR ---
     function rgbToXyz(r,g,b){
@@ -556,4 +556,83 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // carregar dados ao iniciar
     loadData();
+
+    function getPixelColor(x, y) {
+        const img = document.getElementById('uploadedImage');
+        const canvas = document.createElement('canvas');
+        // Modificar esta linha para incluir willReadFrequently
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        
+        // Configurar canvas com dimensões da imagem original
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        
+        // Desenhar imagem no canvas
+        ctx.drawImage(img, 0, 0);
+        
+        // Obter dados do pixel
+        try {
+            const imageData = ctx.getImageData(x, y, 1, 1);
+            const [r, g, b] = imageData.data;
+            return { r, g, b };
+        } catch (error) {
+            console.error('Erro ao obter cor:', error);
+            return null;
+        }
+    }
+
+    function extractColorAtDisplayedPoint(displayX, displayY) {
+        const img = document.getElementById('uploadedImage');
+        const rect = img.getBoundingClientRect();
+        
+        // Converter coordenadas de exibição para coordenadas da imagem
+        const x = Math.round((displayX - rect.left) * (img.naturalWidth / rect.width));
+        const y = Math.round((displayY - rect.top) * (img.naturalHeight / rect.height));
+        
+        // Criar canvas temporário
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        
+        // Desenhar imagem e obter dados do pixel
+        try {
+            ctx.drawImage(img, 0, 0);
+            const sampleSize = parseInt(document.getElementById('sampleSizeSelect').value);
+            const halfSample = Math.floor(sampleSize / 2);
+            
+            // Calcular média da área selecionada
+            let r = 0, g = 0, b = 0;
+            let count = 0;
+            
+            for (let offsetY = -halfSample; offsetY <= halfSample; offsetY++) {
+                for (let offsetX = -halfSample; offsetX <= halfSample; offsetX++) {
+                    const sampleX = x + offsetX;
+                    const sampleY = y + offsetY;
+                    
+                    if (sampleX >= 0 && sampleX < img.naturalWidth && 
+                        sampleY >= 0 && sampleY < img.naturalHeight) {
+                        const pixel = ctx.getImageData(sampleX, sampleY, 1, 1).data;
+                        r += pixel[0];
+                        g += pixel[1];
+                        b += pixel[2];
+                        count++;
+                    }
+                }
+            }
+            
+            // Calcular média
+            return {
+                r: Math.round(r / count),
+                g: Math.round(g / count),
+                b: Math.round(b / count),
+                x: x,
+                y: y
+            };
+        } catch (error) {
+            console.error('Erro ao extrair cor:', error);
+            return null;
+        }
+    }
 });
